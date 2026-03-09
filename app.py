@@ -63,4 +63,5 @@ if st.button("Predict Churn"):
     if prediction == 1:
         st.error("Customer is likely to CHURN")
     else:
+
         st.success("Customer will likely STAY")
