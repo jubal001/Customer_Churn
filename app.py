@@ -1,66 +1,96 @@
 import streamlit as st
 import pandas as pd
 import joblib
+import os
 
-# Load model
-model = joblib.load("log_model/churn_model.pkl")
+# Define file paths for the saved model and training columns
+MODEL_PATH = "churn.pkl"
+COLUMNS_PATH = "model_columns.pkl"
 
-st.title("CUSTORMER CHURN PREDICTION APPLICATION")
+# Set the title of the app
+st.title("☎️Telco Customer Churn Prediction")
 
-st.write("Enter Customer Information")
+# Check if model file exists
+if not os.path.exists(MODEL_PATH):
+    st.error("Model file not found. Please upload model/churn_model.pkl to your repository.")
+    st.stop()
 
-SeniorCitizen = st.selectbox("Senior Citizen", [0,1])
-Tenure = st.number_input("Tenure (Months)", 0, 100)
-MonthlyCharges = st.number_input("Monthly Charges")
-TotalCharges = st.number_input("Total Charges")
+# Check if model columns file exists
+if not os.path.exists(COLUMNS_PATH):
+    st.error("Model columns file not found. Please upload model/model_columns.pkl to your repository.")
+    st.stop()
 
-Gender = st.selectbox("Gender", ["Male","Female"])
-Partner = st.selectbox("Partner", ["Yes","No"])
-Dependents = st.selectbox("Dependents", ["Yes","No"])
-PhoneService = st.selectbox("Phone Service", ["Yes","No"])
-MultipleLines = st.selectbox("Multiple Lines", ["Yes","No"])
-InternetService = st.selectbox("Internet Service", ["DSL","Fiber optic","No"])
-Contract = st.selectbox("Contract", ["Month-to-month","One year","Two year"])
-PaperlessBilling = st.selectbox("Paperless Billing", ["Yes","No"])
-PaymentMethod = st.selectbox("Payment Method",
-["Electronic check","Mailed check","Bank transfer","Credit card"])
+# Load the trained model
+model = joblib.load(MODEL_PATH)
 
-input_dict = {
-"SeniorCitizen":SeniorCitizen,
-"Tenure":Tenure,
-"MonthlyCharges":MonthlyCharges,
-"TotalCharges":TotalCharges,
-"Gender_Male":1 if Gender=="Male" else 0,
-"Partner_Yes":1 if Partner=="Yes" else 0,
-"Dependents_Yes":1 if Dependents=="Yes" else 0,
-"PhoneService_Yes":1 if PhoneService=="Yes" else 0,
-"MultipleLines_Yes":1 if MultipleLines=="Yes" else 0,
-"InternetService_Fiber optic":1 if InternetService=="Fiber optic" else 0,
-"InternetService_No":1 if InternetService=="No" else 0,
-"OnlineSecurity_Yes":0,
-"OnlineBackup_Yes":0,
-"DeviceProtection_Yes":0,
-"TechSupport_Yes":0,
-"StreamingTV_Yes":0,
-"StreamingMovies_Yes":0,
-"Contract_One year":1 if Contract=="One year" else 0,
-"Contract_Two year":1 if Contract=="Two year" else 0,
-"PaperlessBilling_Yes":1 if PaperlessBilling=="Yes" else 0,
-"PaymentMethod_Credit card":1 if PaymentMethod=="Credit card" else 0,
-"PaymentMethod_Electronic check":1 if PaymentMethod=="Electronic check" else 0,
-"PaymentMethod_Mailed check":1 if PaymentMethod=="Mailed check" else 0
-}
+# Load the training column names
+model_columns = joblib.load(COLUMNS_PATH)
 
-input_df = pd.DataFrame([input_dict])
+# Create input widgets for raw customer details
+gender = st.selectbox("Gender", ["Female", "Male"])
+senior_citizen = st.selectbox("Senior Citizen", [0, 1])
+partner = st.selectbox("Partner", ["No", "Yes"])
+dependents = st.selectbox("Dependents", ["No", "Yes"])
+tenure = st.slider("Tenure (months)", 0, 72, 12)
+phone_service = st.selectbox("Phone Service", ["No", "Yes"])
+multiple_lines = st.selectbox("Multiple Lines", ["No", "Yes", "No phone service"])
+internet_service = st.selectbox("Internet Service", ["DSL", "Fiber optic", "No"])
+online_security = st.selectbox("Online Security", ["No", "Yes", "No internet service"])
+online_backup = st.selectbox("Online Backup", ["No", "Yes", "No internet service"])
+device_protection = st.selectbox("Device Protection", ["No", "Yes", "No internet service"])
+tech_support = st.selectbox("Tech Support", ["No", "Yes", "No internet service"])
+streaming_tv = st.selectbox("Streaming TV", ["No", "Yes", "No internet service"])
+streaming_movies = st.selectbox("Streaming Movies", ["No", "Yes", "No internet service"])
+contract = st.selectbox("Contract", ["Month-to-month", "One year", "Two year"])
+paperless_billing = st.selectbox("Paperless Billing", ["No", "Yes"])
+payment_method = st.selectbox(
+    "Payment Method",
+    ["Electronic check", "Mailed check", "Bank transfer (automatic)", "Credit card (automatic)"]
+)
+monthly_charges = st.number_input("Monthly Charges", min_value=0.0, value=70.0)
+total_charges = st.number_input("Total Charges", min_value=0.0, value=1000.0)
 
-# Align columns
-input_df = input_df.reindex(columns=columns, fill_value=0)
-
+# Run prediction when the button is clicked
 if st.button("Predict Churn"):
 
-    prediction = model.predict(input_df)[0]
+    # Create a dataframe from the raw user inputs
+    input_df = pd.DataFrame({
+        "gender": [gender],
+        "SeniorCitizen": [senior_citizen],
+        "Partner": [partner],
+        "Dependents": [dependents],
+        "tenure": [tenure],
+        "PhoneService": [phone_service],
+        "MultipleLines": [multiple_lines],
+        "InternetService": [internet_service],
+        "OnlineSecurity": [online_security],
+        "OnlineBackup": [online_backup],
+        "DeviceProtection": [device_protection],
+        "TechSupport": [tech_support],
+        "StreamingTV": [streaming_tv],
+        "StreamingMovies": [streaming_movies],
+        "Contract": [contract],
+        "PaperlessBilling": [paperless_billing],
+        "PaymentMethod": [payment_method],
+        "MonthlyCharges": [monthly_charges],
+        "TotalCharges": [total_charges]
+    })
 
+    # Convert categorical variables into dummy variables
+    input_encoded = pd.get_dummies(input_df)
+
+    # Reindex the dataframe so it matches the training columns exactly
+    input_encoded = input_encoded.reindex(columns=model_columns, fill_value=0)
+
+    # Make prediction
+    prediction = model.predict(input_encoded)[0]
+
+    # Make probability prediction if supported
+    prediction_proba = model.predict_proba(input_encoded)[0][1]
+
+    # Display the result
     if prediction == 1:
-        st.error("Customer is likely to CHURN")
+        st.error(f"This customer is likely to churn. Probability: {prediction_proba:.2%}")
     else:
-        st.success("Customer will likely STAY")
+
+        st.success(f"This customer is likely to stay. Probability of churn: {prediction_proba:.2%}")
