@@ -2,8 +2,9 @@ import streamlit as st
 import pandas as pd
 import joblib
 
-# Load model
-model = joblib.load("log_model/churn_model.pkl")
+# Load trained model
+model = joblib.load("model/churn_model.pkl")
+columns = joblib.load("model/model_columns.pkl")
 
 st.title("CUSTORMER CHURN PREDICTION APPLICATION")
 
@@ -65,3 +66,4 @@ if st.button("Predict Churn"):
     else:
 
         st.success("Customer will likely STAY")
+
